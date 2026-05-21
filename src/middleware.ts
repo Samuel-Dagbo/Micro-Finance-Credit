@@ -1,0 +1,61 @@
+import { createServerClient } from '@supabase/ssr'
+import { NextResponse, type NextRequest } from 'next/server'
+
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+
+  const isAuthRoute = pathname.startsWith('/auth/')
+  const isDashboardRoute = [
+    '/overview',
+    '/customers',
+    '/loans',
+    '/savings',
+    '/transactions',
+    '/staff',
+    '/reports',
+    '/settings',
+  ].includes(pathname)
+  const isApiRoute = pathname.startsWith('/api/')
+
+  if (isApiRoute || pathname.startsWith('/_next') || pathname.includes('.')) {
+    return NextResponse.next()
+  }
+
+  let response = NextResponse.next({ request })
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => {
+            response.cookies.set(name, value)
+          })
+        },
+      },
+    }
+  )
+
+  const { data: { user } } = await supabase.auth.getUser().catch(() => ({ data: { user: null }, error: null }))
+
+  if (user && isAuthRoute && pathname !== '/auth/login') {
+    return NextResponse.redirect(new URL('/overview', request.url))
+  }
+
+  if (!user && isDashboardRoute) {
+    const loginUrl = new URL('/auth/login', request.url)
+    return NextResponse.redirect(loginUrl)
+  }
+
+  return response
+}
+
+export const config = {
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
+}
