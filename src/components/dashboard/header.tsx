@@ -14,6 +14,9 @@ export default function DashboardHeader({ user }: DashboardHeaderProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
+  const displayName = user?.full_name || `${user?.first_name || ''} ${user?.last_name || ''}`.trim() || 'User'
+  const initials = displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+
   const handleLogout = async () => {
     setIsLoggingOut(true)
     await logout()
@@ -55,11 +58,11 @@ export default function DashboardHeader({ user }: DashboardHeaderProps) {
             >
               <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
                 <span className="text-sm font-semibold text-blue-700">
-                  {user?.first_name?.[0]}{user?.last_name?.[0]}
+                  {initials}
                 </span>
               </div>
               <span className="hidden sm:block text-sm font-medium text-gray-700">
-                {user?.first_name} {user?.last_name}
+                {displayName}
               </span>
             </button>
 
@@ -67,7 +70,7 @@ export default function DashboardHeader({ user }: DashboardHeaderProps) {
               <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-50">
                 <div className="px-4 py-3 border-b border-gray-100">
                   <p className="text-sm font-medium text-gray-900">
-                    {user?.first_name} {user?.last_name}
+                    {displayName}
                   </p>
                   <p className="text-xs text-gray-500">{user?.email}</p>
                   <p className="text-xs text-gray-500 capitalize">{user?.role}</p>

@@ -37,6 +37,9 @@ export default function DashboardSidebar({ user }: DashboardSidebarProps) {
   const pathname = usePathname()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
+  const displayName = user?.full_name || `${user?.first_name || ''} ${user?.last_name || ''}`.trim() || 'User'
+  const initials = displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+
   const handleLogout = async () => {
     setIsLoggingOut(true)
     await logout()
@@ -81,12 +84,12 @@ export default function DashboardSidebar({ user }: DashboardSidebarProps) {
         <div className="flex items-center gap-3 mb-3 px-2">
           <div className="h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center">
             <span className="text-sm font-semibold text-blue-700">
-              {user?.first_name?.[0]}{user?.last_name?.[0]}
+              {initials}
             </span>
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-gray-900 truncate">
-              {user?.first_name} {user?.last_name}
+              {displayName}
             </p>
             <p className="text-xs text-gray-500 capitalize">{user?.role}</p>
           </div>

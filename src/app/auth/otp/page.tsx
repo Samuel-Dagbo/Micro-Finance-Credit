@@ -2,14 +2,16 @@
 
 import { useState, Suspense } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { verifyOtpAndSetupPassword } from '@/actions/auth'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, Shield, Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react'
 import { toast } from 'sonner'
+import { createClient } from '@/lib/supabase/client'
 
 function OtpForm() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const emailFromUrl = searchParams.get('email') || ''
 
   const [otp, setOtp] = useState(['', '', '', '', '', ''])
@@ -44,8 +46,28 @@ function OtpForm() {
       return
     }
 
+    if (!emailFromUrl) {
+      setError('Email is required. Please start over.')
+      return
+    }
+
     setLoading(true)
-    setStep('password')
+    try {
+      const supabase = createClient()
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        email: emailFromUrl.toLowerCase().trim(),
+        token: otpCode,
+        type: 'email',
+      })
+
+      if (verifyError) {
+        setError(verifyError.message || 'Invalid OTP. Please try again.')
+      } else {
+        setStep('password')
+      }
+    } catch {
+      setError('Verification failed. Please try again.')
+    }
     setLoading(false)
   }
 

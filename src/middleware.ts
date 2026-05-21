@@ -5,7 +5,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   const isAuthRoute = pathname.startsWith('/auth/')
-  const isDashboardRoute = [
+  const dashboardPaths = [
     '/overview',
     '/customers',
     '/loans',
@@ -14,14 +14,23 @@ export async function middleware(request: NextRequest) {
     '/staff',
     '/reports',
     '/settings',
-  ].includes(pathname)
+  ]
+  const isDashboardRoute = dashboardPaths.some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`)
+  )
   const isApiRoute = pathname.startsWith('/api/')
+  const isNextStatic = pathname.startsWith('/_next')
+  const hasFileExtension = /\.[a-zA-Z0-9]+$/.test(pathname)
 
-  if (isApiRoute || pathname.startsWith('/_next') || pathname.includes('.')) {
+  if (isApiRoute || isNextStatic || hasFileExtension) {
     return NextResponse.next()
   }
 
-  let response = NextResponse.next({ request })
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  })
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -40,15 +49,22 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser().catch(() => ({ data: { user: null }, error: null }))
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser()
 
-  if (user && isAuthRoute && pathname !== '/auth/login') {
-    return NextResponse.redirect(new URL('/overview', request.url))
+  if (authError || !user) {
+    if (isDashboardRoute) {
+      const redirectUrl = new URL('/auth/login', request.url)
+      redirectUrl.searchParams.set('redirect', pathname)
+      return NextResponse.redirect(redirectUrl)
+    }
+    return response
   }
 
-  if (!user && isDashboardRoute) {
-    const loginUrl = new URL('/auth/login', request.url)
-    return NextResponse.redirect(loginUrl)
+  if (user && isAuthRoute && pathname !== '/auth/activate' && pathname !== '/auth/otp') {
+    return NextResponse.redirect(new URL('/overview', request.url))
   }
 
   return response

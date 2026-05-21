@@ -10,7 +10,10 @@ import { ArrowLeft, Lock, Mail, AlertCircle } from 'lucide-react'
 function LoginForm() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const redirectPath = searchParams.get('redirect') || '/overview'
+  const rawRedirect = searchParams.get('redirect') || '/overview'
+  const redirectPath = ['/overview', '/customers', '/loans', '/savings', '/transactions', '/staff', '/reports', '/settings'].includes(rawRedirect)
+    ? rawRedirect
+    : '/overview'
 
   const [state, formAction, isPending] = useActionState(
     async (_prev: any, formData: FormData) => {
@@ -27,9 +30,8 @@ function LoginForm() {
   useEffect(() => {
     if (state && 'success' in state && state.success) {
       const timer = setTimeout(() => {
-        router.refresh()
         router.push(redirectPath)
-      }, 500)
+      }, 100)
       return () => clearTimeout(timer)
     }
   }, [state, redirectPath, router])
