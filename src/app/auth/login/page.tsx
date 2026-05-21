@@ -26,8 +26,11 @@ function LoginForm() {
 
   useEffect(() => {
     if (state && 'success' in state && state.success) {
-      router.refresh()
-      router.push(redirectPath)
+      const timer = setTimeout(() => {
+        router.refresh()
+        router.push(redirectPath)
+      }, 500)
+      return () => clearTimeout(timer)
     }
   }, [state, redirectPath, router])
 
