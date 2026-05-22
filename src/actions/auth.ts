@@ -273,6 +273,169 @@ export async function getUserRole() {
   }
 }
 
+async function ensureCustomerRecord(adminSupabase: any, tc: any, authUserId: string, branchId: string) {
+  const { data: existing } = await adminSupabase
+    .from('customers')
+    .select('id, customer_id')
+    .eq('user_id', authUserId)
+    .maybeSingle()
+
+  if (existing) {
+    return { customerData: existing, created: false }
+  }
+
+  const { error: userError } = await adminSupabase
+    .from('users')
+    .insert({
+      id: authUserId,
+      email: tc.email,
+      full_name: `${tc.first_name} ${tc.last_name}`,
+      phone: tc.phone,
+      role: 'customer',
+      is_active: true,
+    })
+
+  if (userError) {
+    return { error: `users table insert failed: ${userError.message}` }
+  }
+
+  const { data: customerData, error: customerError } = await adminSupabase
+    .from('customers')
+    .insert({
+      user_id: authUserId,
+      branch_id: branchId,
+      first_name: tc.first_name,
+      last_name: tc.last_name,
+      email: tc.email,
+      phone: tc.phone,
+      occupation: tc.occupation,
+      status: 'active',
+      registered_by: authUserId,
+    })
+    .select('id, customer_id')
+    .single()
+
+  if (customerError || !customerData) {
+    return { error: `customers table insert failed: ${customerError?.message}` }
+  }
+
+  return { customerData, created: true }
+}
+
+async function ensureFinancialRecords(adminSupabase: any, customerData: any, tc: any, authUserId: string, branchId: string) {
+  const { data: existingSavings } = await adminSupabase
+    .from('savings_accounts')
+    .select('id')
+    .eq('customer_id', customerData.id)
+    .maybeSingle()
+
+  if (!existingSavings) {
+    await adminSupabase
+      .from('savings_accounts')
+      .insert({
+        customer_id: customerData.id,
+        account_type: tc.savings.type,
+        balance: tc.savings.balance,
+        interest_rate: tc.savings.rate,
+        target_amount: tc.savings.target || null,
+        status: 'active',
+      })
+
+    await adminSupabase
+      .from('transactions')
+      .insert({
+        transaction_number: `SEED-${Date.now()}-deposit`,
+        customer_id: customerData.id,
+        type: 'deposit',
+        amount: tc.savings.balance,
+        status: 'completed',
+        description: `Initial savings deposit - ${tc.savings.type} account`,
+        processed_by: authUserId,
+      })
+  }
+
+  const { data: existingLoan } = await adminSupabase
+    .from('loans')
+    .select('id')
+    .eq('customer_id', customerData.id)
+    .maybeSingle()
+
+  if (existingLoan) return
+
+  const totalRepayable = Math.round(tc.loan.principal * (1 + (tc.loan.rate / 100) * (tc.loan.term / 12)))
+  const { data: loanData } = await adminSupabase
+    .from('loans')
+    .insert({
+      customer_id: customerData.id,
+      branch_id: branchId,
+      loan_type: tc.loan.type,
+      principal_amount: tc.loan.principal,
+      interest_rate: tc.loan.rate,
+      term_months: tc.loan.term,
+      repayment_frequency: tc.loan.frequency,
+      status: tc.loan.paid > 0 ? 'active' : 'disbursed',
+      approved_by: authUserId,
+      approved_at: new Date().toISOString(),
+      disbursed_at: new Date().toISOString(),
+      due_date: new Date(Date.now() + tc.loan.term * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      total_repayable: totalRepayable,
+      amount_paid: tc.loan.paid,
+      created_by: authUserId,
+    })
+    .select('id')
+    .single()
+
+  if (!loanData) return
+
+  const installmentAmount = Math.round(totalRepayable / tc.loan.term)
+  const paidInstallments = Math.floor(tc.loan.paid / installmentAmount)
+
+  for (let i = 1; i <= tc.loan.term; i++) {
+    const isPaid = i <= paidInstallments
+    await adminSupabase
+      .from('loan_repayment_schedules')
+      .insert({
+        loan_id: loanData.id,
+        installment_number: i,
+        due_date: new Date(Date.now() + (i - paidInstallments) * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        principal_amount: Math.round(tc.loan.principal / tc.loan.term),
+        interest_amount: Math.round((totalRepayable - tc.loan.principal) / tc.loan.term),
+        total_amount: installmentAmount,
+        amount_paid: isPaid ? installmentAmount : 0,
+        status: isPaid ? 'paid' : 'pending',
+        paid_at: isPaid ? new Date(Date.now() - (paidInstallments - i) * 30 * 24 * 60 * 60 * 1000).toISOString() : null,
+      })
+
+    if (isPaid) {
+      await adminSupabase
+        .from('transactions')
+        .insert({
+          transaction_number: `SEED-${Date.now()}-${i}`,
+          customer_id: customerData.id,
+          type: 'loan_repayment',
+          amount: installmentAmount,
+          status: 'completed',
+          description: `Loan repayment - Installment ${i} of ${tc.loan.term}`,
+          processed_by: authUserId,
+        })
+    }
+  }
+
+  if (tc.loan.paid > 0) {
+    await adminSupabase
+      .from('transactions')
+      .insert({
+        transaction_number: `SEED-${Date.now()}-disbursement`,
+        customer_id: customerData.id,
+        type: 'loan_disbursement',
+        amount: tc.loan.principal,
+        status: 'completed',
+        description: `Loan disbursement - ${tc.loan.type} loan`,
+        processed_by: authUserId,
+      })
+  }
+}
+
 export async function seedTestCustomers() {
   try {
     const adminSupabase = createAdminClient()
@@ -313,199 +476,39 @@ export async function seedTestCustomers() {
     const results = []
 
     for (const tc of testCustomers) {
+      let authUserId: string | null = null
       const { data: existingUsers } = await adminSupabase.auth.admin.listUsers()
-      const alreadyExists = existingUsers?.users?.some(u => u.email === tc.email)
-      if (alreadyExists) {
-        results.push({ email: tc.email, status: 'already exists' })
-        continue
-      }
+      const existingAuthUser = existingUsers?.users?.find((u: any) => u.email === tc.email)
 
-      const { data: authData, error: authError } = await adminSupabase.auth.admin.createUser({
-        email: tc.email,
-        password: tc.password,
-        email_confirm: true,
-      })
-
-      if (authError || !authData.user) {
-        results.push({ email: tc.email, status: 'failed', error: authError?.message })
-        continue
-      }
-
-      const { error: userError } = await adminSupabase
-        .from('users')
-        .insert({
-          id: authData.user.id,
-          email: tc.email,
-          full_name: `${tc.first_name} ${tc.last_name}`,
-          phone: tc.phone,
-          role: 'customer',
-          is_active: true,
-        })
-
-      if (userError) {
-        results.push({ email: tc.email, status: 'failed', error: userError.message })
-        continue
-      }
-
-      const { data: customerData, error: customerError } = await adminSupabase
-        .from('customers')
-        .insert({
-          user_id: authData.user.id,
-          branch_id: branchId,
-          first_name: tc.first_name,
-          last_name: tc.last_name,
-          email: tc.email,
-          phone: tc.phone,
-          occupation: tc.occupation,
-          status: 'active',
-          registered_by: authData.user.id,
-        })
-        .select('id, customer_id')
-        .single()
-
-      if (customerError || !customerData) {
-        results.push({ email: tc.email, status: 'customer failed', error: customerError?.message })
-        continue
-      }
-
-      const savingsType = tc.savings.type
-      const { error: savingsError } = await adminSupabase
-        .from('savings_accounts')
-        .insert({
-          customer_id: customerData.id,
-          account_type: savingsType,
-          balance: tc.savings.balance,
-          interest_rate: tc.savings.rate,
-          target_amount: (tc.savings as any).target || null,
-          status: 'active',
-        })
-
-      if (savingsError) {
-        results.push({ email: tc.email, status: 'savings failed', error: savingsError.message })
-        continue
-      }
-
-      const totalRepayable = Math.round(tc.loan.principal * (1 + (tc.loan.rate / 100) * (tc.loan.term / 12)))
-      const { data: loanData, error: loanError } = await adminSupabase
-        .from('loans')
-        .insert({
-          customer_id: customerData.id,
-          branch_id: branchId,
-          loan_type: tc.loan.type,
-          principal_amount: tc.loan.principal,
-          interest_rate: tc.loan.rate,
-          term_months: tc.loan.term,
-          repayment_frequency: tc.loan.frequency,
-          status: tc.loan.paid > 0 ? 'active' : 'disbursed',
-          approved_by: authData.user.id,
-          approved_at: new Date().toISOString(),
-          disbursed_at: new Date().toISOString(),
-          due_date: new Date(Date.now() + tc.loan.term * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          total_repayable: totalRepayable,
-          amount_paid: tc.loan.paid,
-          created_by: authData.user.id,
-        })
-        .select('id')
-        .single()
-
-      if (loanError) {
-        results.push({ email: tc.email, status: 'loan failed', error: loanError.message })
-        continue
-      }
-
-      if (tc.loan.paid > 0) {
-        const installmentAmount = Math.round(totalRepayable / tc.loan.term)
-        const paidInstallments = Math.floor(tc.loan.paid / installmentAmount)
-        for (let i = 1; i <= paidInstallments; i++) {
-          await adminSupabase
-            .from('loan_repayment_schedules')
-            .insert({
-              loan_id: loanData.id,
-              installment_number: i,
-              due_date: new Date(Date.now() - (tc.loan.term - i) * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-              principal_amount: Math.round(tc.loan.principal / tc.loan.term),
-              interest_amount: Math.round((totalRepayable - tc.loan.principal) / tc.loan.term),
-              total_amount: installmentAmount,
-              amount_paid: installmentAmount,
-              status: 'paid',
-              paid_at: new Date(Date.now() - (tc.loan.term - i) * 30 * 24 * 60 * 60 * 1000).toISOString(),
-            })
-
-          await adminSupabase
-            .from('transactions')
-            .insert({
-              transaction_number: `SEED-${Date.now()}-${i}`,
-              customer_id: customerData.id,
-              type: 'loan_repayment',
-              amount: installmentAmount,
-              status: 'completed',
-              description: `Loan repayment - Installment ${i} of ${tc.loan.term}`,
-              processed_by: authData.user.id,
-            })
-        }
-
-        for (let i = paidInstallments + 1; i <= tc.loan.term; i++) {
-          await adminSupabase
-            .from('loan_repayment_schedules')
-            .insert({
-              loan_id: loanData.id,
-              installment_number: i,
-              due_date: new Date(Date.now() + (i - paidInstallments) * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-              principal_amount: Math.round(tc.loan.principal / tc.loan.term),
-              interest_amount: Math.round((totalRepayable - tc.loan.principal) / tc.loan.term),
-              total_amount: installmentAmount,
-              amount_paid: 0,
-              status: 'pending',
-            })
-        }
+      if (existingAuthUser) {
+        authUserId = existingAuthUser.id
       } else {
-        for (let i = 1; i <= tc.loan.term; i++) {
-          await adminSupabase
-            .from('loan_repayment_schedules')
-            .insert({
-              loan_id: loanData.id,
-              installment_number: i,
-              due_date: new Date(Date.now() + i * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-              principal_amount: Math.round(tc.loan.principal / tc.loan.term),
-              interest_amount: Math.round((totalRepayable - tc.loan.principal) / tc.loan.term),
-              total_amount: Math.round(totalRepayable / tc.loan.term),
-              amount_paid: 0,
-              status: 'pending',
-            })
-        }
-      }
-
-      await adminSupabase
-        .from('transactions')
-        .insert({
-          transaction_number: `SEED-${Date.now()}-deposit`,
-          customer_id: customerData.id,
-          type: 'deposit',
-          amount: tc.savings.balance,
-          status: 'completed',
-          description: `Initial savings deposit - ${tc.savings.type} account`,
-          processed_by: authData.user.id,
+        const { data: authData, error: authError } = await adminSupabase.auth.admin.createUser({
+          email: tc.email,
+          password: tc.password,
+          email_confirm: true,
         })
 
-      if (tc.loan.paid > 0) {
-        await adminSupabase
-          .from('transactions')
-          .insert({
-            transaction_number: `SEED-${Date.now()}-disbursement`,
-            customer_id: customerData.id,
-            type: 'loan_disbursement',
-            amount: tc.loan.principal,
-            status: 'completed',
-            description: `Loan disbursement - ${tc.loan.type} loan`,
-            processed_by: authData.user.id,
-          })
+        if (authError || !authData.user) {
+          results.push({ email: tc.email, status: 'failed', error: authError?.message })
+          continue
+        }
+        authUserId = authData.user.id
       }
+
+      const customerResult = await ensureCustomerRecord(adminSupabase, tc, authUserId, branchId)
+      if (customerResult.error) {
+        results.push({ email: tc.email, status: 'failed', error: customerResult.error })
+        continue
+      }
+
+      await ensureFinancialRecords(adminSupabase, customerResult.customerData, tc, authUserId, branchId)
 
       results.push({
         email: tc.email,
-        status: 'created',
+        status: customerResult.created ? 'created' : 'repaired',
         password: tc.password,
-        customer_id: customerData.customer_id,
+        customer_id: customerResult.customerData.customer_id,
         savings_balance: `GH₵ ${tc.savings.balance.toLocaleString()}`,
         loan_amount: `GH₵ ${tc.loan.principal.toLocaleString()}`,
       })
