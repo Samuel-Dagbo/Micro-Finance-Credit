@@ -75,7 +75,7 @@ export default function SavingsPage() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {savingsTypes.map((plan, index) => (
               <motion.div
                 key={plan.type}

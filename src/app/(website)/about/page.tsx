@@ -31,7 +31,7 @@ export default function AboutPage() {
                 <img
                   src="https://media.istockphoto.com/id/2198966747/photo/couple-closing-real-estate-contract-with-real-estate-agent.webp?a=1&b=1&s=612x612&w=0&k=20&c=MRupwwS_sR21cACmOIEPxd5ykbXbZsxLoc_oKUsaNhc="
                   alt="MicroFin team"
-                  className="w-full h-80 object-cover"
+                  className="w-full h-48 sm:h-64 lg:h-80 object-cover"
                 />
               </div>
             </motion.div>
@@ -63,16 +63,16 @@ export default function AboutPage() {
             </motion.div>
 
             <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
                 {[
                   { icon: Target, value: '2020', label: 'Founded' },
                   { icon: Users, value: '50K+', label: 'Customers' },
                   { icon: Building2, value: '15+', label: 'Branches' },
                   { icon: Award, value: '99.9%', label: 'Uptime' },
                 ].map((stat) => (
-                  <div key={stat.label} className="p-5 bg-white rounded-xl text-center shadow-sm border border-gray-100">
-                    <stat.icon className="h-7 w-7 text-blue-600 mx-auto mb-2" />
-                    <div className="text-xl font-bold text-gray-900">{stat.value}</div>
+                  <div key={stat.label} className="p-3 sm:p-5 bg-white rounded-xl text-center shadow-sm border border-gray-100">
+                    <stat.icon className="h-5 w-5 sm:h-7 sm:w-7 text-blue-600 mx-auto mb-1 sm:mb-2" />
+                    <div className="text-base sm:text-xl font-bold text-gray-900">{stat.value}</div>
                     <div className="text-xs text-gray-500">{stat.label}</div>
                   </div>
                 ))}
@@ -92,7 +92,7 @@ export default function AboutPage() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
               { icon: Eye, title: 'Transparency', description: 'Clear terms, no hidden fees, and full visibility into your financial activities.' },
               { icon: Heart, title: 'Inclusion', description: 'Financial services designed for everyone, regardless of income level or banking history.' },

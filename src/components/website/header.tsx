@@ -150,7 +150,12 @@ export default function Header({ user }: HeaderProps) {
                     </Link>
                   </motion.div>
                 ))}
-                <div className="pt-4 mt-4 border-t border-gray-100 space-y-3">
+                <div className="pt-4 mt-4 border-t border-gray-100 space-y-2">
+                  <div className="flex items-center gap-3 px-4 py-2 text-sm text-gray-500">
+                    <Phone className="h-4 w-4" />
+                    <span>+233 30 123 4567</span>
+                  </div>
+                  <div className="space-y-3">
                   {user ? (
                     <Link href="/overview" onClick={() => setMobileOpen(false)}>
                       <Button className="w-full gap-2 bg-blue-600 hover:bg-blue-700">
@@ -173,6 +178,7 @@ export default function Header({ user }: HeaderProps) {
                   )}
                 </div>
               </div>
+            </div>
             </motion.div>
           )}
         </AnimatePresence>

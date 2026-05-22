@@ -63,10 +63,10 @@ export default function HowItWorksPage() {
 
                 <div className="flex-1 flex justify-center">
                   <div className="relative">
-                    <div className="h-64 w-64 rounded-3xl bg-gradient-to-br from-blue-500/10 to-blue-600/5 flex items-center justify-center border border-blue-100">
-                      <step.icon className="h-24 w-24 text-blue-400" />
+                    <div className="h-48 w-48 sm:h-64 sm:w-64 rounded-3xl bg-gradient-to-br from-blue-500/10 to-blue-600/5 flex items-center justify-center border border-blue-100">
+                      <step.icon className="h-16 w-16 sm:h-24 sm:w-24 text-blue-400" />
                     </div>
-                    <div className="absolute -bottom-4 -right-4 h-20 w-20 rounded-2xl bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center text-white text-2xl font-bold shadow-lg">
+                    <div className="absolute -bottom-4 right-0 sm:-right-4 h-14 w-14 sm:h-20 sm:w-20 rounded-2xl bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center text-white text-lg sm:text-2xl font-bold shadow-lg">
                       {step.number}
                     </div>
                   </div>

@@ -129,13 +129,13 @@ export default function HomePage() {
 
               <div className="flex flex-col sm:flex-row gap-3 mb-8 lg:mb-10">
                 <Link href="/auth/activate">
-                  <Button size="lg" className="gap-2 text-sm sm:text-base px-6 sm:px-10 py-5 sm:py-6 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg shadow-blue-600/20 w-full sm:w-auto">
+                  <Button size="lg" className="gap-2 text-sm sm:text-base px-6 sm:px-10 py-3 sm:py-6 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg shadow-blue-600/20 w-full sm:w-auto">
                     Get Started Free
                     <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />
                   </Button>
                 </Link>
                 <Link href="/how-it-works">
-                  <Button size="lg" variant="outline" className="gap-2 text-sm sm:text-base px-6 sm:px-10 py-5 sm:py-6 border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl w-full sm:w-auto">
+                  <Button size="lg" variant="outline" className="gap-2 text-sm sm:text-base px-6 sm:px-10 py-3 sm:py-6 border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl w-full sm:w-auto">
                     <Play className="h-4 w-4 sm:h-5 sm:w-5" />
                     See How It Works
                   </Button>
@@ -308,10 +308,10 @@ export default function HomePage() {
                 <img
                   src="https://media.istockphoto.com/id/2198966747/photo/couple-closing-real-estate-contract-with-real-estate-agent.webp?a=1&b=1&s=612x612&w=0&k=20&c=MRupwwS_sR21cACmOIEPxd5ykbXbZsxLoc_oKUsaNhc="
                   alt="Happy customers"
-                  className="w-full h-96 object-cover"
+                    className="w-full h-64 sm:h-80 lg:h-96 object-cover"
                 />
               </div>
-              <div className="absolute -bottom-6 -right-6 bg-gradient-to-br from-blue-600 to-blue-700 text-white rounded-2xl shadow-xl p-6">
+              <div className="absolute -bottom-6 right-2 sm:-right-4 lg:-right-6 bg-gradient-to-br from-blue-600 to-blue-700 text-white rounded-2xl shadow-xl p-6">
                 <p className="text-3xl font-bold">98%</p>
                 <p className="text-sm text-blue-200">Customer Satisfaction</p>
               </div>
@@ -368,7 +368,7 @@ export default function HomePage() {
             </p>
           </motion.div>
 
-          <motion.div variants={staggerContainer} initial="initial" whileInView="animate" viewport={{ once: true }} className="grid md:grid-cols-3 gap-8">
+          <motion.div variants={staggerContainer} initial="initial" whileInView="animate" viewport={{ once: true }} className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {testimonials.map((t) => (
               <motion.div key={t.name} variants={fadeInUp} className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm hover:shadow-lg transition-shadow">
                 <div className="flex items-center gap-1 mb-4">
