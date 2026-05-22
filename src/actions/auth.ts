@@ -276,7 +276,6 @@ export async function getUserRole() {
 export async function seedTestCustomers() {
   try {
     const adminSupabase = createAdminClient()
-    const supabase = await createClient()
     const testCustomers = [
       {
         email: 'ama.mensah@test.com',
@@ -296,6 +295,17 @@ export async function seedTestCustomers() {
       },
     ]
 
+    const { data: branchData, error: branchError } = await adminSupabase
+      .from('branches')
+      .select('id')
+      .limit(1)
+      .maybeSingle()
+
+    if (branchError || !branchData) {
+      return { error: 'No branch found. Please create a branch first in the Supabase dashboard.' }
+    }
+
+    const branchId = branchData.id
     const results = []
 
     for (const tc of testCustomers) {
@@ -317,13 +327,7 @@ export async function seedTestCustomers() {
         continue
       }
 
-      const { data: mainBranch } = await supabase
-        .from('branches')
-        .select('id')
-        .limit(1)
-        .single()
-
-      const { error: userError } = await supabase
+      const { error: userError } = await adminSupabase
         .from('users')
         .insert({
           id: authData.user.id,
@@ -339,11 +343,11 @@ export async function seedTestCustomers() {
         continue
       }
 
-      const { error: customerError } = await supabase
+      const { error: customerError } = await adminSupabase
         .from('customers')
         .insert({
           user_id: authData.user.id,
-          branch_id: (mainBranch as any)?.id || '',
+          branch_id: branchId,
           first_name: tc.first_name,
           last_name: tc.last_name,
           email: tc.email,
