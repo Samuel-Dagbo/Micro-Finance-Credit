@@ -190,10 +190,31 @@ export async function verifyOtpAndSetupPassword(formData: FormData) {
       return { error: 'Password setup failed. Please try again.' }
     }
 
-    await supabase
+    const { data: customerRecord } = await supabase
       .from('customers')
-      .update({ status: 'active' })
+      .select('*')
       .eq('email', email.toLowerCase().trim())
+      .single()
+
+    if (customerRecord) {
+      const { error: upsertError } = await supabase
+        .from('users')
+        .upsert({
+          id: user.id,
+          email: email.toLowerCase().trim(),
+          full_name: `${(customerRecord as any).first_name} ${(customerRecord as any).last_name}`,
+          phone: (customerRecord as any).phone || null,
+          role: 'customer',
+          is_active: true,
+        })
+
+      if (!upsertError) {
+        await supabase
+          .from('customers')
+          .update({ status: 'active', user_id: user.id, activated_at: new Date().toISOString() })
+          .eq('id', (customerRecord as any).id)
+      }
+    }
 
     revalidatePath('/', 'layout')
     return { success: true }
@@ -249,5 +270,99 @@ export async function getUserRole() {
   } catch (err) {
     console.error('Get user role error:', err)
     return null
+  }
+}
+
+export async function seedTestCustomers() {
+  try {
+    const adminSupabase = createAdminClient()
+    const supabase = await createClient()
+    const testCustomers = [
+      {
+        email: 'ama.mensah@test.com',
+        password: 'Test@1234',
+        first_name: 'Ama',
+        last_name: 'Mensah',
+        phone: '0241111111',
+        occupation: 'Market Trader',
+      },
+      {
+        email: 'kwame.asante@test.com',
+        password: 'Test@1234',
+        first_name: 'Kwame',
+        last_name: 'Asante',
+        phone: '0242222222',
+        occupation: 'Farmer',
+      },
+    ]
+
+    const results = []
+
+    for (const tc of testCustomers) {
+      const { data: existingUsers } = await adminSupabase.auth.admin.listUsers()
+      const alreadyExists = existingUsers?.users?.some(u => u.email === tc.email)
+      if (alreadyExists) {
+        results.push({ email: tc.email, status: 'already exists' })
+        continue
+      }
+
+      const { data: authData, error: authError } = await adminSupabase.auth.admin.createUser({
+        email: tc.email,
+        password: tc.password,
+        email_confirm: true,
+      })
+
+      if (authError || !authData.user) {
+        results.push({ email: tc.email, status: 'failed', error: authError?.message })
+        continue
+      }
+
+      const { data: mainBranch } = await supabase
+        .from('branches')
+        .select('id')
+        .limit(1)
+        .single()
+
+      const { error: userError } = await supabase
+        .from('users')
+        .insert({
+          id: authData.user.id,
+          email: tc.email,
+          full_name: `${tc.first_name} ${tc.last_name}`,
+          phone: tc.phone,
+          role: 'customer',
+          is_active: true,
+        })
+
+      if (userError) {
+        results.push({ email: tc.email, status: 'failed', error: userError.message })
+        continue
+      }
+
+      const { error: customerError } = await supabase
+        .from('customers')
+        .insert({
+          user_id: authData.user.id,
+          branch_id: (mainBranch as any)?.id || '',
+          first_name: tc.first_name,
+          last_name: tc.last_name,
+          email: tc.email,
+          phone: tc.phone,
+          occupation: tc.occupation,
+          status: 'active',
+          registered_by: authData.user.id,
+        })
+
+      if (customerError) {
+        results.push({ email: tc.email, status: 'customer failed', error: customerError.message })
+      } else {
+        results.push({ email: tc.email, status: 'created', password: tc.password })
+      }
+    }
+
+    return { results }
+  } catch (err) {
+    console.error('Seed test customers error:', err)
+    return { error: 'Failed to seed test customers' }
   }
 }

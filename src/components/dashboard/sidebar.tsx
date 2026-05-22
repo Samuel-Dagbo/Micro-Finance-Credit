@@ -18,15 +18,15 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils/helpers'
 
-const navItems = [
-  { name: 'Overview', href: '/overview', icon: LayoutDashboard },
-  { name: 'Customers', href: '/customers', icon: Users },
-  { name: 'Loans', href: '/loans', icon: Wallet },
-  { name: 'Savings', href: '/savings', icon: Landmark },
-  { name: 'Transactions', href: '/transactions', icon: ArrowLeftRight },
-  { name: 'Staff', href: '/staff', icon: UserCog },
-  { name: 'Reports', href: '/reports', icon: BarChart3 },
-  { name: 'Settings', href: '/settings', icon: Settings },
+const allNavItems = [
+  { name: 'Overview', href: '/overview', icon: LayoutDashboard, roles: ['super_admin', 'branch_manager', 'loan_officer', 'cashier', 'collector', 'customer_support', 'customer'] },
+  { name: 'Customers', href: '/customers', icon: Users, roles: ['super_admin', 'branch_manager', 'loan_officer', 'cashier'] },
+  { name: 'Loans', href: '/loans', icon: Wallet, roles: ['super_admin', 'branch_manager', 'loan_officer', 'cashier', 'collector', 'customer'] },
+  { name: 'Savings', href: '/savings', icon: Landmark, roles: ['super_admin', 'branch_manager', 'cashier', 'loan_officer', 'customer'] },
+  { name: 'Transactions', href: '/transactions', icon: ArrowLeftRight, roles: ['super_admin', 'branch_manager', 'cashier', 'loan_officer', 'collector', 'customer'] },
+  { name: 'Staff', href: '/staff', icon: UserCog, roles: ['super_admin', 'branch_manager'] },
+  { name: 'Reports', href: '/reports', icon: BarChart3, roles: ['super_admin', 'branch_manager'] },
+  { name: 'Settings', href: '/settings', icon: Settings, roles: ['super_admin', 'branch_manager'] },
 ]
 
 interface DashboardSidebarProps {
@@ -37,6 +37,8 @@ export default function DashboardSidebar({ user }: DashboardSidebarProps) {
   const pathname = usePathname()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
+  const role = user?.role || 'customer'
+  const navItems = allNavItems.filter(item => item.roles.includes(role))
   const displayName = user?.full_name || `${user?.first_name || ''} ${user?.last_name || ''}`.trim() || 'User'
   const initials = displayName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
 
