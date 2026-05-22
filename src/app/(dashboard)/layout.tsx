@@ -13,6 +13,27 @@ async function getUserProfile(userId: string, email: string) {
     .single()
 
   if (staffData) {
+    if (staffData.role === 'customer') {
+      const { data: customerData } = await supabase
+        .from('customers')
+        .select('*, branches(name)')
+        .eq('user_id', userId)
+        .single()
+
+      if (customerData) {
+        return {
+          type: 'customer' as const,
+          data: {
+            ...customerData,
+            first_name: customerData.first_name,
+            last_name: customerData.last_name,
+            email: customerData.email,
+            role: 'customer',
+            branches: customerData.branches,
+          },
+        }
+      }
+    }
     return { type: 'staff' as const, data: staffData }
   }
 

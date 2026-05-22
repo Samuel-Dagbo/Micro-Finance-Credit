@@ -284,6 +284,8 @@ export async function seedTestCustomers() {
         last_name: 'Mensah',
         phone: '0241111111',
         occupation: 'Market Trader',
+        savings: { type: 'regular' as const, balance: 2500, rate: 8 },
+        loan: { type: 'business' as const, principal: 5000, rate: 24, term: 6, frequency: 'monthly' as const, paid: 1800 },
       },
       {
         email: 'kwame.asante@test.com',
@@ -292,16 +294,18 @@ export async function seedTestCustomers() {
         last_name: 'Asante',
         phone: '0242222222',
         occupation: 'Farmer',
+        savings: { type: 'target' as const, balance: 1200, rate: 10, target: 5000 },
+        loan: { type: 'agricultural' as const, principal: 8000, rate: 18, term: 12, frequency: 'monthly' as const, paid: 0 },
       },
     ]
 
-    const { data: branchData, error: branchError } = await adminSupabase
+    const { data: branchData } = await adminSupabase
       .from('branches')
       .select('id')
       .limit(1)
       .maybeSingle()
 
-    if (branchError || !branchData) {
+    if (!branchData) {
       return { error: 'No branch found. Please create a branch first in the Supabase dashboard.' }
     }
 
@@ -343,7 +347,7 @@ export async function seedTestCustomers() {
         continue
       }
 
-      const { error: customerError } = await adminSupabase
+      const { data: customerData, error: customerError } = await adminSupabase
         .from('customers')
         .insert({
           user_id: authData.user.id,
@@ -356,12 +360,155 @@ export async function seedTestCustomers() {
           status: 'active',
           registered_by: authData.user.id,
         })
+        .select('id, customer_id')
+        .single()
 
-      if (customerError) {
-        results.push({ email: tc.email, status: 'customer failed', error: customerError.message })
-      } else {
-        results.push({ email: tc.email, status: 'created', password: tc.password })
+      if (customerError || !customerData) {
+        results.push({ email: tc.email, status: 'customer failed', error: customerError?.message })
+        continue
       }
+
+      const savingsType = tc.savings.type
+      const { error: savingsError } = await adminSupabase
+        .from('savings_accounts')
+        .insert({
+          customer_id: customerData.id,
+          account_type: savingsType,
+          balance: tc.savings.balance,
+          interest_rate: tc.savings.rate,
+          target_amount: (tc.savings as any).target || null,
+          status: 'active',
+        })
+
+      if (savingsError) {
+        results.push({ email: tc.email, status: 'savings failed', error: savingsError.message })
+        continue
+      }
+
+      const totalRepayable = Math.round(tc.loan.principal * (1 + (tc.loan.rate / 100) * (tc.loan.term / 12)))
+      const { data: loanData, error: loanError } = await adminSupabase
+        .from('loans')
+        .insert({
+          customer_id: customerData.id,
+          branch_id: branchId,
+          loan_type: tc.loan.type,
+          principal_amount: tc.loan.principal,
+          interest_rate: tc.loan.rate,
+          term_months: tc.loan.term,
+          repayment_frequency: tc.loan.frequency,
+          status: tc.loan.paid > 0 ? 'active' : 'disbursed',
+          approved_by: authData.user.id,
+          approved_at: new Date().toISOString(),
+          disbursed_at: new Date().toISOString(),
+          due_date: new Date(Date.now() + tc.loan.term * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          total_repayable: totalRepayable,
+          amount_paid: tc.loan.paid,
+          created_by: authData.user.id,
+        })
+        .select('id')
+        .single()
+
+      if (loanError) {
+        results.push({ email: tc.email, status: 'loan failed', error: loanError.message })
+        continue
+      }
+
+      if (tc.loan.paid > 0) {
+        const installmentAmount = Math.round(totalRepayable / tc.loan.term)
+        const paidInstallments = Math.floor(tc.loan.paid / installmentAmount)
+        for (let i = 1; i <= paidInstallments; i++) {
+          await adminSupabase
+            .from('loan_repayment_schedules')
+            .insert({
+              loan_id: loanData.id,
+              installment_number: i,
+              due_date: new Date(Date.now() - (tc.loan.term - i) * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              principal_amount: Math.round(tc.loan.principal / tc.loan.term),
+              interest_amount: Math.round((totalRepayable - tc.loan.principal) / tc.loan.term),
+              total_amount: installmentAmount,
+              amount_paid: installmentAmount,
+              status: 'paid',
+              paid_at: new Date(Date.now() - (tc.loan.term - i) * 30 * 24 * 60 * 60 * 1000).toISOString(),
+            })
+
+          await adminSupabase
+            .from('transactions')
+            .insert({
+              transaction_number: `SEED-${Date.now()}-${i}`,
+              customer_id: customerData.id,
+              type: 'loan_repayment',
+              amount: installmentAmount,
+              status: 'completed',
+              description: `Loan repayment - Installment ${i} of ${tc.loan.term}`,
+              processed_by: authData.user.id,
+            })
+        }
+
+        for (let i = paidInstallments + 1; i <= tc.loan.term; i++) {
+          await adminSupabase
+            .from('loan_repayment_schedules')
+            .insert({
+              loan_id: loanData.id,
+              installment_number: i,
+              due_date: new Date(Date.now() + (i - paidInstallments) * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              principal_amount: Math.round(tc.loan.principal / tc.loan.term),
+              interest_amount: Math.round((totalRepayable - tc.loan.principal) / tc.loan.term),
+              total_amount: installmentAmount,
+              amount_paid: 0,
+              status: 'pending',
+            })
+        }
+      } else {
+        for (let i = 1; i <= tc.loan.term; i++) {
+          await adminSupabase
+            .from('loan_repayment_schedules')
+            .insert({
+              loan_id: loanData.id,
+              installment_number: i,
+              due_date: new Date(Date.now() + i * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              principal_amount: Math.round(tc.loan.principal / tc.loan.term),
+              interest_amount: Math.round((totalRepayable - tc.loan.principal) / tc.loan.term),
+              total_amount: Math.round(totalRepayable / tc.loan.term),
+              amount_paid: 0,
+              status: 'pending',
+            })
+        }
+      }
+
+      await adminSupabase
+        .from('transactions')
+        .insert({
+          transaction_number: `SEED-${Date.now()}-deposit`,
+          customer_id: customerData.id,
+          type: 'deposit',
+          amount: tc.savings.balance,
+          status: 'completed',
+          description: `Initial savings deposit - ${tc.savings.type} account`,
+          processed_by: authData.user.id,
+        })
+
+      if (tc.loan.paid > 0) {
+        await adminSupabase
+          .from('transactions')
+          .insert({
+            transaction_number: `SEED-${Date.now()}-disbursement`,
+            customer_id: customerData.id,
+            type: 'loan_disbursement',
+            amount: tc.loan.principal,
+            status: 'completed',
+            description: `Loan disbursement - ${tc.loan.type} loan`,
+            processed_by: authData.user.id,
+          })
+      }
+
+      results.push({
+        email: tc.email,
+        status: 'created',
+        password: tc.password,
+        customer_id: customerData.customer_id,
+        savings_balance: `GH₵ ${tc.savings.balance.toLocaleString()}`,
+        loan_amount: `GH₵ ${tc.loan.principal.toLocaleString()}`,
+      })
     }
 
     return { results }

@@ -16,7 +16,7 @@ export default async function SeedPage() {
             {(result.results || []).map((r: any) => (
               <div
                 key={r.email}
-                className={`p-4 rounded-xl border ${
+                className={`p-5 rounded-xl border ${
                   r.status === 'created'
                     ? 'bg-green-50 border-green-200'
                     : r.status === 'already exists'
@@ -24,20 +24,25 @@ export default async function SeedPage() {
                     : 'bg-red-50 border-red-200'
                 }`}
               >
-                <p className="font-medium text-gray-900">{r.email}</p>
-                <p className="text-sm text-gray-600">
-                  Status: {r.status}
-                  {r.password ? ` — Password: ${r.password}` : ''}
-                  {r.error ? ` — Error: ${r.error}` : ''}
-                </p>
+                <p className="font-semibold text-gray-900">{r.email}</p>
+                <div className="mt-2 space-y-1 text-sm text-gray-600">
+                  <p>Status: {r.status}</p>
+                  {r.password && <p>Password: <span className="font-mono font-medium">{r.password}</span></p>}
+                  {r.customer_id && <p>Customer ID: <span className="font-mono font-medium">{r.customer_id}</span></p>}
+                  {r.savings_balance && <p>Savings: <span className="font-medium text-green-600">{r.savings_balance}</span></p>}
+                  {r.loan_amount && <p>Loan: <span className="font-medium text-blue-600">{r.loan_amount}</span></p>}
+                  {r.error && <p className="text-red-600">Error: {r.error}</p>}
+                </div>
               </div>
             ))}
-            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-              <p className="font-medium text-blue-900">Test Credentials</p>
-              <p className="text-sm text-blue-700 mt-1">
-                Email: ama.mensah@test.com / kwame.asante@test.com<br />
-                Password: Test@1234
-              </p>
+            <div className="mt-6 p-5 bg-blue-50 border border-blue-200 rounded-xl">
+              <p className="font-semibold text-blue-900 mb-2">Login Credentials</p>
+              <div className="space-y-2 text-sm text-blue-800">
+                <p><span className="font-medium">Email:</span> ama.mensah@test.com</p>
+                <p><span className="font-medium">Email:</span> kwame.asante@test.com</p>
+                <p><span className="font-medium">Password:</span> Test@1234</p>
+              </div>
+              <p className="mt-3 text-xs text-blue-600">Login at /auth/login to see the customer dashboard with live data.</p>
             </div>
           </div>
         )}
