@@ -192,7 +192,7 @@ export async function verifyOtpAndSetupPassword(formData: FormData) {
 
     await supabase
       .from('customers')
-      .update({ status: 'active' })
+      .update({ status: 'active' as any })
       .eq('email', email.toLowerCase().trim())
 
     revalidatePath('/', 'layout')
