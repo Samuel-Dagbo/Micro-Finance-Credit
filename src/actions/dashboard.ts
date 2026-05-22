@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 
 export async function getDashboardStats() {
-  const supabase = await createClient() as any
+  const supabase = await createClient()
 
   const { data: customers } = await supabase
     .from('customers')
@@ -57,7 +57,7 @@ export async function getDashboardStats() {
 }
 
 export async function getTransactions(limit: number = 50) {
-  const supabase = await createClient() as any
+  const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('transactions')
@@ -70,7 +70,7 @@ export async function getTransactions(limit: number = 50) {
 }
 
 export async function getBranches() {
-  const supabase = await createClient() as any
+  const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('branches')
@@ -83,7 +83,7 @@ export async function getBranches() {
 }
 
 export async function getStaff() {
-  const supabase = await createClient() as any
+  const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('users')
@@ -95,7 +95,7 @@ export async function getStaff() {
 }
 
 export async function getNotifications() {
-  const supabase = await createClient() as any
+  const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Unauthorized' }
@@ -112,7 +112,7 @@ export async function getNotifications() {
 }
 
 export async function markNotificationRead(notificationId: string) {
-  const supabase = await createClient() as any
+  const supabase = await createClient()
 
   const { error } = await supabase
     .from('notifications')
@@ -124,7 +124,7 @@ export async function markNotificationRead(notificationId: string) {
 }
 
 export async function getSettings() {
-  const supabase = await createClient() as any
+  const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('settings')
@@ -136,14 +136,14 @@ export async function getSettings() {
 }
 
 export async function updateSetting(key: string, value: unknown) {
-  const supabase = await createClient() as any
+  const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Unauthorized' }
 
   const { error } = await supabase
     .from('settings')
-    .update({ value: value as any, updated_by: user.id, updated_at: new Date().toISOString() })
+    .update({ value: value, updated_by: user.id, updated_at: new Date().toISOString() })
     .eq('key', key)
 
   if (error) return { error: error.message }

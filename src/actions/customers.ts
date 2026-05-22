@@ -5,7 +5,7 @@ import { customerRegistrationSchema } from '@/lib/validations'
 import { revalidatePath } from 'next/cache'
 
 export async function registerCustomer(formData: FormData) {
-  const supabase = await createClient() as any
+  const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Unauthorized' }
@@ -35,8 +35,7 @@ export async function registerCustomer(formData: FormData) {
     .eq('id', user.id)
     .single()
 
-  const u = userData as any
-  if (!u || !['super_admin', 'branch_manager', 'loan_officer', 'cashier'].includes(u.role)) {
+  if (!userData || !['super_admin', 'branch_manager', 'loan_officer', 'cashier'].includes((userData as any).role)) {
     return { error: 'Insufficient permissions' }
   }
 
@@ -47,7 +46,7 @@ export async function registerCustomer(formData: FormData) {
       branch_id: validated.data.branch_id,
       registered_by: user.id,
       status: 'pending_activation',
-    } as any)
+    })
     .select()
     .single()
 
@@ -55,26 +54,25 @@ export async function registerCustomer(formData: FormData) {
     return { error: error.message }
   }
 
-  const c = customer as any
   await supabase.from('audit_logs').insert({
     user_id: user.id,
     action: 'customer_registered',
     entity_type: 'customer',
-    entity_id: c.id,
-    new_values: { customer_id: c.customer_id, name: `${c.first_name} ${c.last_name}` },
-  } as any)
+    entity_id: (customer as any).id,
+    new_values: { customer_id: (customer as any).customer_id, name: `${(customer as any).first_name} ${(customer as any).last_name}` },
+  })
 
   revalidatePath('/customers')
-  return { success: true, customer_id: c.customer_id }
+  return { success: true, customer_id: (customer as any).customer_id }
 }
 
 export async function updateCustomerStatus(customerId: string, status: 'active' | 'suspended' | 'closed') {
-  const supabase = await createClient() as any
+  const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Unauthorized' }
 
-  const { error } = await (supabase as any)
+  const { error } = await supabase
     .from('customers')
     .update({ status, updated_at: new Date().toISOString() })
     .eq('id', customerId)
@@ -87,14 +85,14 @@ export async function updateCustomerStatus(customerId: string, status: 'active' 
     entity_type: 'customer',
     entity_id: customerId,
     new_values: { status },
-  } as any)
+  })
 
   revalidatePath('/customers')
   return { success: true }
 }
 
 export async function getCustomers(branchId?: string) {
-  const supabase = await createClient() as any
+  const supabase = await createClient()
 
   let query = supabase
     .from('customers')
@@ -112,7 +110,7 @@ export async function getCustomers(branchId?: string) {
 }
 
 export async function getCustomerById(id: string) {
-  const supabase = await createClient() as any
+  const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('customers')
@@ -125,7 +123,7 @@ export async function getCustomerById(id: string) {
 }
 
 export async function getCustomerByCustomerId(customerId: string) {
-  const supabase = await createClient() as any
+  const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('customers')

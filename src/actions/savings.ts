@@ -5,7 +5,7 @@ import { depositSchema, withdrawalSchema } from '@/lib/validations'
 import { revalidatePath } from 'next/cache'
 
 export async function createSavingsAccount(customerId: string, accountType: 'regular' | 'fixed' | 'target', targetAmount?: number, maturityDate?: string) {
-  const supabase = await createClient() as any
+  const supabase = await createClient() 
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Unauthorized' }
@@ -46,7 +46,7 @@ export async function createSavingsAccount(customerId: string, accountType: 'reg
 }
 
 export async function processDeposit(formData: FormData) {
-  const supabase = await createClient() as any
+  const supabase = await createClient() 
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Unauthorized' }
@@ -105,7 +105,7 @@ export async function processDeposit(formData: FormData) {
 }
 
 export async function processWithdrawal(formData: FormData) {
-  const supabase = await createClient() as any
+  const supabase = await createClient() 
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Unauthorized' }
@@ -164,7 +164,7 @@ export async function processWithdrawal(formData: FormData) {
 }
 
 export async function getSavingsAccounts(customerId?: string) {
-  const supabase = await createClient() as any
+  const supabase = await createClient() 
 
   let query = supabase
     .from('savings_accounts')
@@ -181,7 +181,7 @@ export async function getSavingsAccounts(customerId?: string) {
 }
 
 export async function getSavingsStats() {
-  const supabase = await createClient() as any
+  const supabase = await createClient() 
 
   const { data: accounts } = await supabase
     .from('savings_accounts')

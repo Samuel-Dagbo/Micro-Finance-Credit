@@ -6,7 +6,7 @@ import { calculateLoanRepayment, generateRepaymentSchedule } from '@/lib/utils/h
 import { revalidatePath } from 'next/cache'
 
 export async function createLoan(formData: FormData) {
-  const supabase = await createClient() as any
+  const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Unauthorized' }
@@ -97,7 +97,7 @@ export async function createLoan(formData: FormData) {
 }
 
 export async function approveLoan(formData: FormData) {
-  const supabase = await createClient() as any
+  const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Unauthorized' }
@@ -158,7 +158,7 @@ export async function approveLoan(formData: FormData) {
 }
 
 export async function disburseLoan(loanId: string) {
-  const supabase = await createClient() as any
+  const supabase = await createClient() 
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Unauthorized' }
@@ -206,7 +206,7 @@ export async function disburseLoan(loanId: string) {
 }
 
 export async function processRepayment(formData: FormData) {
-  const supabase = await createClient() as any
+  const supabase = await createClient() 
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Unauthorized' }
@@ -293,7 +293,7 @@ export async function processRepayment(formData: FormData) {
 }
 
 export async function getLoans(branchId?: string, status?: string) {
-  const supabase = await createClient() as any
+  const supabase = await createClient() 
 
   let query = supabase
     .from('loans')
@@ -313,7 +313,7 @@ export async function getLoans(branchId?: string, status?: string) {
 }
 
 export async function getLoanById(id: string) {
-  const supabase = await createClient() as any
+  const supabase = await createClient() 
 
   const { data, error } = await supabase
     .from('loans')
@@ -326,7 +326,7 @@ export async function getLoanById(id: string) {
 }
 
 export async function getLoanStats() {
-  const supabase = await createClient() as any
+  const supabase = await createClient() 
 
   const { data: totalLoans } = await supabase
     .from('loans')
