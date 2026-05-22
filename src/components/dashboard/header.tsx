@@ -15,7 +15,7 @@ export default function DashboardHeader({ user }: DashboardHeaderProps) {
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   const displayName = user?.full_name || `${user?.first_name || ''} ${user?.last_name || ''}`.trim() || 'User'
-  const initials = displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+  const initials = displayName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
 
   const handleLogout = async () => {
     setIsLoggingOut(true)
